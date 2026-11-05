@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectonic 7x9</title>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --text-color: #0f172a;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --border-color: #cbd5e1;
+            --error-color: #ef4444;
+            --success-color: #22c55e;
+            --selected-color: #93c5fd;
+            --same-num-color: #dbeafe;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            user-select: none;
+        }
+
+        h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.3rem;
+            color: #0f172a;
+            text-align: center;
+        }
+
+        .subtitle {
+            margin: 0 0 15px 0;
+            font-size: 0.9rem;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button, select {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.15s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        select {
+            background-color: #ffffff;
+            color: #0f172a;
+            border: 1px solid var(--border-color);
+            outline: none;
+            padding-right: 28px;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        button.btn-sec {
+            background-color: #64748b;
+        }
+        button.btn-sec:hover {
+            background-color: #475569;
+        }
+
+        button.btn-success {
+            background-color: var(--success-color);
+        }
+        button.btn-success:hover {
+            background-color: #16a34a;
+        }
+
+        .board-container {
+            background: var(--panel-bg);
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(7, 46px);
+            grid-template-rows: repeat(9, 46px);
+            gap: 0;
+            background-color: #0f172a;
+            border: 3.5px solid #0f172a;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 400px) {
+            #grid {
+                grid-template-columns: repeat(7, 40px);
+                grid-template-rows: repeat(9, 40px);
+            }
+            .cell {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 1.2rem !important;
+            }
+        }
+
+        .cell {
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-sizing: border-box;
+            position: relative;
+            background-color: #ffffff;
+            transition: background-color 0.15s;
+        }
+
+        /* Regio dikke en dunne randen */
+        .border-top-region { border-top: 3.5px solid #0f172a !important; }
+        .border-bottom-region { border-bottom: 3.5px solid #0f172a !important; }
+        .border-left-region { border-left: 3.5px solid #0f172a !important; }
+        .border-right-region { border-right: 3.5px solid #0f172a !important; }
+
+        .border-top-inner { border-top: 1px dashed #cbd5e1; }
+        .border-bottom-inner { border-bottom: 1px dashed #cbd5e1; }
+        .border-left-inner { border-left: 1px dashed #cbd5e1; }
+        .border-right-inner { border-right: 1px dashed #cbd5e1; }
+
+        .cell.given {
+            color: #0f172a;
+            font-weight: 900;
+            cursor: default;
+        }
+
+        .cell.user-filled {
+            color: #2563eb;
+            font-weight: 800;
+        }
+
+        .cell.selected {
+            background-color: var(--selected-color) !important;
+            z-index: 10;
+        }
+
+        .cell.highlight-same {
+            background-color: var(--same-num-color);
+        }
+
+        .cell.invalid {
+            color: var(--error-color) !important;
+            background-color: #fee2e2 !important;
+            animation: shake 0.25s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-3px); }
+            40%, 80% { transform: translateX(3px); }
+        }
+
+        .numpad {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .num-btn {
+            width: 44px;
+            height: 44px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .num-btn:hover {
+            background-color: #e2e8f0;
+        }
+
+        .num-btn.delete {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+
+        #message {
+            margin-top: 14px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            min-height: 24px;
+            text-align: center;
+        }
+
+        /* Pastelkleuren per regio */
+        .color-0 { background-color: #ffffff; }
+        .color-1 { background-color: #fefce8; }
+        .color-2 { background-color: #f0fdf4; }
+        .color-3 { background-color: #eff6ff; }
+        .color-4 { background-color: #faf5ff; }
+        .color-5 { background-color: #fff1f2; }
+        .color-6 { background-color: #f0fdfa; }
+        .color-7 { background-color: #fff7ed; }
+        .color-8 { background-color: #f5f3ff; }
+    </style>
+</head>
+<body>
+
+    <h3>Tectonic 7×9  (by AI)</h3>
+    <p class="subtitle">Plaats getal in regios van 1 t/m N.<br>Getal mag hetzelfde getal nergens raken</p>
+
+    <div class="controls">
+        <select id="select-difficulty">
+            <option value="0.45">Makkelijk</option>
+            <option value="0.35" selected>Gemiddeld</option>
+            <option value="0.25">Moeilijk</option>
+        </select>
+        <button id="btn-new">Nieuw Spel</button>
+        <button id="btn-reset" class="btn-sec">Opnieuw</button>
+        <button id="btn-validate" class="btn-success">Controle</button>
+    </div>
+
+    <div id="message"></div>
+    <div class="board-container">
+        <div id="grid"></div>
+
+        <div class="numpad">
+            <button class="num-btn" data-val="1">1</button>
+            <button class="num-btn" data-val="2">2</button>
+            <button class="num-btn" data-val="3">3</button>
+            <button class="num-btn" data-val="4">4</button>
+            <button class="num-btn" data-val="5">5</button>
+            <button class="num-btn delete" data-val="0">✕</button>
+        </div>
+    </div>
+
+
+    <script>
+        const COLS = 7;
+        const ROWS = 9;
+        const TOTAL_CELLS = COLS * ROWS;
+
+        let regions = [];        // Regio-id per cel
+        let regionGroups = [];   // Cellenlijst per regio-id
+        let solution = [];       // Berekende oplossing
+        let initialBoard = [];   // Vaste gegeven cijfers
+        let userBoard = [];      // Huidige stand van de gebruiker
+        let selectedCell = null; // Actief geselecteerde cel
+
+        // 1. REGIO GENERATIE (Grootte 1 t/m 5)
+        function generateRegions() {
+            let attempt = 0;
+            while (attempt < 100) {
+                attempt++;
+                let regs = new Array(TOTAL_CELLS).fill(-1);
+                let groups = [];
+                let regId = 0;
+
+                for (let i = 0; i < TOTAL_CELLS; i++) {
+                    if (regs[i] !== -1) continue;
+
+                    let targetSize = Math.floor(Math.random() * 5) + 1; // 1..5
+                    let group = [i];
+                    regs[i] = regId;
+
+                    while (group.length < targetSize) {
+                        let candidates = [];
+                        for (let cellIdx of group) {
+                            let r = Math.floor(cellIdx / COLS);
+                            let c = cellIdx % COLS;
+                            let neighbors = [
+                                [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
+                            ];
+                            for (let [nr, nc] of neighbors) {
+                                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                    let nIdx = nr * COLS + nc;
+                                    if (regs[nIdx] === -1 && !candidates.includes(nIdx)) {
+                                        candidates.push(nIdx);
+                                    }
+                                }
+                            }
+                        }
+                        if (candidates.length === 0) break;
+                        let nextCell = candidates[Math.floor(Math.random() * candidates.length)];
+                        regs[nextCell] = regId;
+                        group.push(nextCell);
+                    }
+                    groups.push(group);
+                    regId++;
+                }
+
+                // Eenzame cellen of regio's kleiner dan 1 mergen met een bijeengelegen regio als grootte <= 5 blijft
+                let validPartition = true;
+                for (let g = 0; g < groups.length; g++) {
+                    if (groups[g].length === 0) continue;
+                    // Als een regio heel klein is, probeer samen te voegen
+                    if (groups[g].length === 1 && Math.random() < 0.7) {
+                        let cellIdx = groups[g][0];
+                        let r = Math.floor(cellIdx / COLS);
+                        let c = cellIdx % COLS;
+                        let neighbors = [[r-1,c], [r+1,c], [r,c-1], [r,c+1]];
+                        for (let [nr, nc] of neighbors) {
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                let nIdx = nr * COLS + nc;
+                                let neighborReg = regs[nIdx];
+                                if (neighborReg !== g && groups[neighborReg].length < 5) {
+                                    regs[cellIdx] = neighborReg;
+                                    groups[neighborReg].push(cellIdx);
+                                    groups[g] = [];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Filter lege groepen eruit en herindexeer
+                let cleanGroups = groups.filter(g => g.length > 0);
+                if (cleanGroups.every(g => g.length >= 1 && g.length <= 5)) {
+                    // Herindexeer region map
+                    let finalRegs = new Array(TOTAL_CELLS);
+                    cleanGroups.forEach((grp, newId) => {
+                        grp.forEach(cIdx => finalRegs[cIdx] = newId);
+                    });
+                    return { regions: finalRegs, regionGroups: cleanGroups };
+                }
+            }
+        }
+
+        // 2. BACKTRACKING SOLVER MET MRV (Minimum Remaining Values)
+        function solvePuzzle(regs, groups) {
+            let grid = new Array(TOTAL_CELLS).fill(0);
+
+            function getCandidates(cellIdx) {
+                let r = Math.floor(cellIdx / COLS);
+                let c = cellIdx % COLS;
+                let regId = regs[cellIdx];
+                let maxVal = groups[regId].length;
+
+                let used = new Set();
+                // Gebruikt in dezelfde regio
+                for (let idx of groups[regId]) {
+                    if (grid[idx] !== 0) used.add(grid[idx]);
+                }
+                // Gebruikt in 8 omliggende buurcellen
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        let nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                            let val = grid[nr * COLS + nc];
+                            if (val !== 0) used.add(val);
+                        }
+                    }
+                }
+
+                let cand = [];
+                for (let v = 1; v <= maxVal; v++) {
+                    if (!used.has(v)) cand.push(v);
+                }
+                return cand;
+            }
+
+            let iterations = 0;
+            function backtrack() {
+                iterations++;
+                if (iterations > 3000) return false; // Voorkom vastlopen bij hele lastige knopen
+
+                let minCand = null;
+                let bestCell = -1;
+
+                for (let i = 0; i < TOTAL_CELLS; i++) {
+                    if (grid[i] === 0) {
+                        let cand = getCandidates(i);
+                        if (cand.length === 0) return false; // Doodlopend spoor
+                        if (minCand === null || cand.length < minCand.length) {
+                            minCand = cand;
+                            bestCell = i;
+                            if (cand.length === 1) break;
+                        }
+                    }
+                }
+
+                if (bestCell === -1) return true; // Alles opgelost!
+
+                // Shuffle kandidaten voor willekeurigheid in de puzzels
+                minCand.sort(() => Math.random() - 0.5);
+
+                for (let val of minCand) {
+                    grid[bestCell] = val;
+                    if (backtrack()) return true;
+                    grid[bestCell] = 0;
+                }
+                return false;
+            }
+
+            if (backtrack()) return grid;
+            return null;
+        }
+
+        // 3. GENERATIE VAN PUZZEL MET DYNAMISCHE MOEILIJKHEIDSGRAAD
+        function generatePuzzle() {
+            let solvedData = null;
+            let regData = null;
+
+            while (!solvedData) {
+                regData = generateRegions();
+                solvedData = solvePuzzle(regData.regions, regData.regionGroups);
+            }
+
+            regions = regData.regions;
+            regionGroups = regData.regionGroups;
+            solution = solvedData;
+
+            initialBoard = new Array(TOTAL_CELLS).fill(0);
+            userBoard = new Array(TOTAL_CELLS).fill(0);
+
+            // Haal gekozen moeilijkheidsgraad op
+            let difficultyRatio = parseFloat(document.getElementById('select-difficulty').value);
+
+            let indices = Array.from({length: TOTAL_CELLS}, (_, i) => i);
+            indices.sort(() => Math.random() - 0.5);
+            let revealCount = Math.floor(TOTAL_CELLS * difficultyRatio);
+
+            for (let i = 0; i < revealCount; i++) {
+                let idx = indices[i];
+                initialBoard[idx] = solution[idx];
+                userBoard[idx] = solution[idx];
+            }
+        }
+
+        // 4. BORD RENDEREN
+        function renderBoard() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let idx = r * COLS + c;
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.index = idx;
+
+                    // Wijs unieke pastelkleur toe aan regio
+                    let regId = regions[idx];
+                    cell.classList.add(`color-${regId % 9}`);
+
+                    // Bepaal randen: dikke donkere rand tussen regio's, gestippeld binnen regio
+                    if (r === 0 || regions[(r - 1) * COLS + c] !== regId) cell.classList.add('border-top-region');
+                    else cell.classList.add('border-top-inner');
+
+                    if (r === ROWS - 1 || regions[(r + 1) * COLS + c] !== regId) cell.classList.add('border-bottom-region');
+                    else cell.classList.add('border-bottom-inner');
+
+                    if (c === 0 || regions[r * COLS + (c - 1)] !== regId) cell.classList.add('border-left-region');
+                    else cell.classList.add('border-left-inner');
+
+                    if (c === COLS - 1 || regions[r * COLS + (c + 1)] !== regId) cell.classList.add('border-right-region');
+                    else cell.classList.add('border-right-inner');
+
+                    // Waarde invullen
+                    if (initialBoard[idx] !== 0) {
+                        cell.innerText = initialBoard[idx];
+                        cell.classList.add('given');
+                    } else if (userBoard[idx] !== 0) {
+                        cell.innerText = userBoard[idx];
+                        cell.classList.add('user-filled');
+                    }
+
+                    cell.addEventListener('click', () => selectCell(idx));
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(idx) {
+            selectedCell = idx;
+            let cells = document.querySelectorAll('.cell');
+            cells.forEach(c => {
+                c.classList.remove('selected', 'highlight-same');
+                let cellIdx = parseInt(c.dataset.index);
+                if (cellIdx === idx) {
+                    c.classList.add('selected');
+                } else if (userBoard[idx] !== 0 && userBoard[cellIdx] === userBoard[idx]) {
+                    c.classList.add('highlight-same');
+                }
+            });
+        }
+
+        function inputValue(val) {
+            if (selectedCell === null) return;
+            if (initialBoard[selectedCell] !== 0) return; // Vaste getallen niet wijzigen
+
+            let maxVal = regionGroups[regions[selectedCell]].length;
+            if (val > maxVal) {
+                const msg = document.getElementById('message');
+                msg.innerText = `Deze regio heeft ${maxVal} cel(len). Vul maximaal ${maxVal} in.`;
+                msg.style.color = "#ef4444";
+                return;
+            }
+
+            userBoard[selectedCell] = val;
+            renderBoard();
+            selectCell(selectedCell);
+            document.getElementById('message').innerText = "";
+        }
+
+        function resetBoard() {
+            for (let i = 0; i < TOTAL_CELLS; i++) {
+                userBoard[i] = initialBoard[i];
+            }
+            renderBoard();
+            document.getElementById('message').innerText = "Spel geherstart.";
+            document.getElementById('message').style.color = "#64748b";
+        }
+
+        function startNewGame() {
+            const msg = document.getElementById('message');
+            msg.innerText = "Nieuwe puzzel genereren...";
+            msg.style.color = "#0f172a";
+
+            setTimeout(() => {
+                generatePuzzle();
+                renderBoard();
+                selectedCell = null;
+                msg.innerText = "Nieuw spel gestart!";
+                msg.style.color = "#2563eb";
+            }, 30);
+        }
+
+        // 5. VALIDATIE OP BASIS VAN TECTONIC REGELS
+        function validateSolution() {
+            let cells = document.querySelectorAll('.cell');
+            cells.forEach(c => c.classList.remove('invalid'));
+
+            let errors = 0;
+            let incomplete = false;
+
+            for (let i = 0; i < TOTAL_CELLS; i++) {
+                if (userBoard[i] === 0) {
+                    incomplete = true;
+                }
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let idx = r * COLS + c;
+                    let val = userBoard[idx];
+                    if (val === 0) continue;
+
+                    let isInvalid = false;
+                    let regId = regions[idx];
+
+                    // Check 1: groter dan max regio grootte
+                    if (val > regionGroups[regId].length) {
+                        isInvalid = true;
+                    }
+
+                    // Check 2: dubbelen binnen dezelfde regio
+                    for (let cellIdx of regionGroups[regId]) {
+                        if (cellIdx !== idx && userBoard[cellIdx] === val) {
+                            isInvalid = true;
+                        }
+                    }
+
+                    // Check 3: dubbelen in 8 omliggende buren
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (dr === 0 && dc === 0) continue;
+                            let nr = r + dr;
+                            let nc = c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                let nIdx = nr * COLS + nc;
+                                if (userBoard[nIdx] === val) {
+                                    isInvalid = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (isInvalid) {
+                        errors++;
+                        let cellElem = document.querySelector(`.cell[data-index="${idx}"]`);
+                        if (cellElem) cellElem.classList.add('invalid');
+                    }
+                }
+            }
+
+            const msg = document.getElementById('message');
+            if (errors > 0) {
+                msg.innerText = `Er zijn ${errors} fouten gevonden (rood omrand).`;
+                msg.style.color = "#ef4444";
+            } else if (incomplete) {
+                msg.innerText = "Tot nu toe klopt alles, maar de puzzel is nog niet af!";
+                msg.style.color = "#2563eb";
+            } else {
+                msg.innerText = "Gefeliciteerd! De Tectonic puzzel is helemaal correct opgelost! 🎉";
+                msg.style.color = "#22c55e";
+            }
+        }
+
+        // EVENT LISTENERS & INITIALISATIE
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-new').addEventListener('click', startNewGame);
+            document.getElementById('btn-reset').addEventListener('click', resetBoard);
+            document.getElementById('btn-validate').addEventListener('click', validateSolution);
+
+            document.querySelectorAll('.num-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    let val = parseInt(btn.getAttribute('data-val'));
+                    inputValue(val);
+                });
+            });
+
+            startNewGame();
+        });
+
+        // TOETSENBORD BESTURING
+        document.addEventListener('keydown', (e) => {
+            if (selectedCell === null) return;
+
+            if (e.key >= '1' && e.key <= '5') {
+                inputValue(parseInt(e.key));
+            } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                inputValue(0);
+            } else if (e.key === 'ArrowUp') {
+                if (selectedCell >= COLS) selectCell(selectedCell - COLS);
+            } else if (e.key === 'ArrowDown') {
+                if (selectedCell + COLS < TOTAL_CELLS) selectCell(selectedCell + COLS);
+            } else if (e.key === 'ArrowLeft') {
+                if (selectedCell % COLS > 0) selectCell(selectedCell - 1);
+            } else if (e.key === 'ArrowRight') {
+                if ((selectedCell + 1) % COLS > 0) selectCell(selectedCell + 1);
+            }
+        });
+    </script>
+</body>
+</html>
